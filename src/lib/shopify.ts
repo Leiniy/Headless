@@ -1,7 +1,7 @@
 import type { Product, ShopifyPage, CartItem } from './types';
 
-const STOREFRONT_TOKEN = 'a233b69972e06502c727dfda23afd31c';
-const STORE_URL = 'https://vbiwbf-ev.myshopify.com';
+const STOREFRONT_TOKEN = process.env.SHOPIFY_STOREFRONT_TOKEN!;
+const STORE_URL = process.env.SHOPIFY_STORE_URL!;
 
 async function shopifyFetch<T = any>(
   query: string,
@@ -94,7 +94,7 @@ export async function getPage(handle: string): Promise<ShopifyPage | null> {
   }
 }
 
-// ─── Checkout ────────────────────────────────────────────────────────────────
+// ─── Checkout ───────────────────────────────────────────────────────────────
 
 export async function createCheckout(lineItems: CartItem[]): Promise<string | null> {
   const data = await shopifyFetch<{
