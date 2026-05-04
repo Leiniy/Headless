@@ -1,16 +1,27 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getProducts } from '@/lib/shopify';
+
+type Variant = {
+  id: number;
+  title: string;
+  price: string;
+  available: boolean;
+};
+
+type Image = {
+  id: number;
+  src: string;
+};
 
 type Product = {
-  id: string;
+  id: number;
   title: string;
   handle: string;
-  description: string;
-  price: string;
-  currency: string;
-  image: string;
+  body_html: string;
+  vendor: string;
+  variants: Variant[];
+  images: Image[];
 };
 
 export default function Home() {
@@ -18,8 +29,9 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    getProducts()
-      .then(setProducts)
+    fetch('https://vbiwbf-ev.myshopify.com/products.json')
+      .then((res) => res.json())
+      .then((data) => setProducts(data.products || []))
       .catch((e: Error) => setError(e.message));
   }, []);
 
@@ -53,33 +65,35 @@ export default function Home() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {products.map((product) => (
-              <a
-                key={product.id}
-                href={`https://vbiwbf-ev.myshopify.com/products/${product.handle}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow"
-              >
-                <div className="aspect-square bg-gray-100 relative overflow-hidden">
-                  {product.image ? (
-                    <img
-                      src={product.image}
-                      alt={product.title}
-                      className="object-cover w-full h-full"
-                    />
-                  ) : (
-                    <div className="flex items-center justify-center h-full text-gray-400">No image</div>
-                  )}
-                </div>
-                <div className="p-4">
-                  <h4 className="font-medium text-sm mb-1">{product.title}</h4>
-                  <p className="text-gray-600 text-sm">
-                    ${parseFloat(product.price).toFixed(2)} {product.currency}
-                  </p>
-                </div>
-              </a>
-            ))}
+            {products.map((product) => {
+              const price = product.variants[0]?.price || '0.00';
+              const image = product.images[0]?.src || '';
+              return (
+                <a
+                  key={product.id}
+                  href={`https://vbiwbf-ev.myshopify.com/products/${product.handle}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow"
+                >
+                  <div className="aspect-square bg-gray-100 relative overflow-hidden">
+                    {image ? (
+                      <img
+                        src={image}
+                        alt={product.title}
+                        className="object-cover w-full h-full"
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center h-full text-gray-400">No image</div>
+                    )}
+                  </div>
+                  <div className="p-4">
+                    <h4 className="font-medium text-sm mb-1">{product.title}</h4>
+                    <p className="text-gray-600 text-sm">${parseFloat(price).toFixed(2)}</p>
+                  </div>
+                </a>
+              );
+            })}
           </div>
         )}
       </main>
