@@ -1,19 +1,34 @@
 import type { Product, ShopifyPage, CartItem } from './types';
 
-const STOREFRONT_TOKEN = process.env.SHOPIFY_STOREFRONT_TOKEN!;
-const STORE_URL = process.env.SHOPIFY_STORE_URL!;
+function getStoreUrl(): string {
+  const val = process.env.SHOPIFY_STORE_URL || '';
+  if (!val) return '';
+  // 确保有 protocol
+  if (!val.startsWith('http://') && !val.startsWith('https://')) {
+    return `https://${val}`;
+  }
+  return val;
+}
+
+const STOREFRONT_TOKEN = process.env.SHOPIFY_STOREFRONT_TOKEN || '';
 
 async function shopifyFetch<T = any>(
   query: string,
   variables?: Record<string, unknown>
 ): Promise<T> {
-  const res = await fetch(`${STORE_URL}/api/2024-10/graphql.json`, {
+  const storeUrl = getStoreUrl();
+  if (!storeUrl) {
+    throw new Error('SHOPIFY_STORE_URL is not configured');
+  }
+
+  const res = await fetch(`${storeUrl}/api/2024-10/graphql.json`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'X-Shopify-Storefront-Access-Token': STOREFRONT_TOKEN,
     },
     body: JSON.stringify({ query, variables }),
+    cache: 'no-store' as RequestCache,
   });
 
   if (!res.ok) {
