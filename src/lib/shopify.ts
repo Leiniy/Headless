@@ -10,7 +10,11 @@ function getStoreUrl(): string {
   return val;
 }
 
-const STOREFRONT_TOKEN = process.env.SHOPIFY_STOREFRONT_TOKEN || '';
+const STOREFRONT_TOKEN =
+  process.env.SHOPIFY_STOREFRONT_TOKEN ||
+  process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN ||
+  process.env.SHOPIFY_STOREFRONT_API_KEY ||
+  '';
 
 async function shopifyFetch<T = any>(
   query: string,
@@ -45,39 +49,44 @@ async function shopifyFetch<T = any>(
 // ─── Products ───────────────────────────────────────────────────────────────
 
 export async function getProducts(first = 12): Promise<Product[]> {
-  const data = await shopifyFetch<{ products: { edges: Array<{ node: any }> } }>(
-    `query getProducts($first: Int!) {
-      products(first: $first) {
-        edges {
-          node {
-            id
-            title
-            handle
-            priceRange {
-              minVariantPrice { amount currencyCode }
-            }
-            images(first: 1) {
-              edges { node { url } }
-            }
-            variants(first: 1) {
-              edges { node { id } }
+  try {
+    const data = await shopifyFetch<{ products: { edges: Array<{ node: any }> } }>(
+      `query getProducts($first: Int!) {
+        products(first: $first) {
+          edges {
+            node {
+              id
+              title
+              handle
+              priceRange {
+                minVariantPrice { amount currencyCode }
+              }
+              images(first: 1) {
+                edges { node { url } }
+              }
+              variants(first: 1) {
+                edges { node { id } }
+              }
             }
           }
         }
-      }
-    }`,
-    { first }
-  );
+      }`,
+      { first }
+    );
 
-  return data.products.edges.map((edge: any) => ({
-    id: edge.node.id,
-    title: edge.node.title,
-    handle: edge.node.handle,
-    price: edge.node.priceRange.minVariantPrice.amount || '0.00',
-    currency: edge.node.priceRange.minVariantPrice.currencyCode || 'USD',
-    image: edge.node.images.edges[0]?.node.url || '',
-    variantId: edge.node.variants.edges[0]?.node.id || '',
-  }));
+    return data.products.edges.map((edge: any) => ({
+      id: edge.node.id,
+      title: edge.node.title,
+      handle: edge.node.handle,
+      price: edge.node.priceRange.minVariantPrice.amount || '0.00',
+      currency: edge.node.priceRange.minVariantPrice.currencyCode || 'USD',
+      image: edge.node.images.edges[0]?.node.url || '',
+      variantId: edge.node.variants.edges[0]?.node.id || '',
+    }));
+  } catch (e: unknown) {
+    console.warn('getProducts failed:', e instanceof Error ? e.message : String(e));
+    return [];
+  }
 }
 
 // ─── Page ───────────────────────────────────────────────────────────────────

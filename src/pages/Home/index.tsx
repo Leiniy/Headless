@@ -1,10 +1,13 @@
 import { getProducts } from '@/lib/shopify';
 import Link from 'next/link';
 
-
-
 export default async function HomePage() {
-  const products = await getProducts(12);
+  let products: any[] = [];
+  try {
+    products = await getProducts(12);
+  } catch (e: any) {
+    console.warn('Failed to fetch products:', e?.message || e);
+  }
 
   return (
     <div className="min-h-screen bg-white text-black font-sans">
