@@ -232,7 +232,8 @@ export default function Home() {
 
       {/* Hero */}
       <section className="px-6 py-20 text-center">
-        <h2 className="text-4xl font-bold mb-4">Welcome to Our Store</h2>
+        <h2 className="text-4xl font-bold mb-4">欢迎来到我们的商店</h2>
+        <p className="text-gray-600 max-w-md mx-auto mb-4">无头框架首页配置成功 🎉</p>
         <p className="text-gray-600 max-w-md mx-auto">Browse our latest collection</p>
       </section>
 
