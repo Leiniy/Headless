@@ -1,13 +1,20 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 
-const STOREFRONT_TOKEN = process.env.SHOPIFY_STOREFRONT_TOKEN!;
-const STORE_URL = process.env.SHOPIFY_STORE_URL!;
+const STOREFRONT_TOKEN =
+  process.env.SHOPIFY_STOREFRONT_TOKEN ||
+  process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN ||
+  process.env.SHOPIFY_STOREFRONT_API_KEY ||
+  '';
+
+const STORE_URL =
+  (process.env.SHOPIFY_STORE_URL || '').replace(/^https?:\/\//, '');
 
 async function shopifyFetch<T = any>(
   query: string,
   variables?: Record<string, unknown>
 ): Promise<T> {
-  const res = await fetch(`${STORE_URL}/api/2024-10/graphql.json`, {
+  const url = STORE_URL.startsWith('http') ? STORE_URL : `https://${STORE_URL}`;
+  const res = await fetch(`${url}/api/2024-10/graphql.json`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -17,14 +24,9 @@ async function shopifyFetch<T = any>(
     cache: 'no-store' as RequestCache,
   });
 
-  if (!res.ok) {
-    throw new Error(`Shopify API error: ${res.status}`);
-  }
-
+  if (!res.ok) throw new Error(`Shopify API error: ${res.status}`);
   const json = await res.json();
-  if (json.errors) {
-    throw new Error(json.errors[0].message);
-  }
+  if (json.errors) throw new Error(json.errors[0].message);
   return json.data;
 }
 
@@ -38,9 +40,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           products(first: $first) {
             edges {
               node {
-                id
-                title
-                handle
+                id title handle
                 priceRange { minVariantPrice { amount currencyCode } }
                 images(first: 1) { edges { node { url } } }
                 variants(first: 1) { edges { node { id } } }
@@ -50,7 +50,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }`,
         { first: 12 }
       );
-
       const products = data.products.edges.map((edge: any) => ({
         id: edge.node.id,
         title: edge.node.title,
@@ -60,7 +59,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         image: edge.node.images.edges[0]?.node.url || '',
         variantId: edge.node.variants.edges[0]?.node.id || '',
       }));
-
       return res.status(200).json(products);
     }
 
@@ -69,21 +67,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (!handle || typeof handle !== 'string') {
         return res.status(400).json({ error: 'Missing handle' });
       }
-
       const data = await shopifyFetch<{ page: any }>(
         `query getPage($handle: String!) {
-          page(handle: $handle) { id title handle body }
+          page(handle: $handle) {
+            id title handle body
+            metafield(namespace: "custom", key: "page") { value }
+          }
         }`,
         { handle }
       );
-
       if (!data.page) return res.status(404).json({ error: 'Page not found' });
+
+      let modules: any[] = [];
+      try { modules = JSON.parse(data.page.metafield?.value || '[]'); } catch {}
 
       return res.status(200).json({
         id: data.page.id,
         title: data.page.title,
         handle: data.page.handle,
-        body: data.page.body,
+        modules,
       });
     }
 

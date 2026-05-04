@@ -1,4 +1,4 @@
-import type { Product, ShopifyPage, CartItem } from './types';
+import type { Product, ShopifyPage, CartItem, ModuleConfig } from './types';
 
 function getStoreUrl(): string {
   const val = process.env.SHOPIFY_STORE_URL || '';
@@ -100,6 +100,9 @@ export async function getPage(handle: string): Promise<ShopifyPage | null> {
           title
           handle
           body
+          metafield(namespace: "custom", key: "page") {
+            value
+          }
         }
       }`,
       { handle }
@@ -107,11 +110,19 @@ export async function getPage(handle: string): Promise<ShopifyPage | null> {
 
     if (!data.page) return null;
 
+    let modules: ModuleConfig[] = [];
+    try {
+      modules = JSON.parse(data.page.metafield?.value || '[]');
+    } catch {
+      modules = [];
+    }
+
     return {
       id: data.page.id,
       title: data.page.title,
       handle: data.page.handle,
       body: data.page.body,
+      modules,
     };
   } catch {
     return null;

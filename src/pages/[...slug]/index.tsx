@@ -1,5 +1,6 @@
-import Link from 'next/link';
-import { getPage, getProducts } from '@/lib/shopify';
+// 动态页面：读取 Shopify 页面数据并渲染
+import { getPage } from '@/lib/shopify';
+import { GetStaticPaths, GetStaticProps } from 'next';
 
 interface Module {
   type: string;
@@ -15,7 +16,7 @@ interface Product {
   image: string;
 }
 
-interface HomeProps {
+interface PageData {
   pageTitle: string;
   modules: Module[];
   products: Product[];
@@ -24,9 +25,7 @@ interface HomeProps {
 function HeroModule({ title, subtitle, image, ctaText, ctaUrl }: any) {
   return (
     <section className="relative h-[500px] flex items-center justify-center bg-gray-900 overflow-hidden">
-      {image && (
-        <img src={image} alt={title} className="absolute inset-0 w-full h-full object-cover opacity-60" />
-      )}
+      {image && <img src={image} alt={title} className="absolute inset-0 w-full h-full object-cover opacity-60" />}
       <div className="relative z-10 text-center text-white px-6">
         <h1 className="text-5xl font-bold mb-4">{title}</h1>
         {subtitle && <p className="text-xl mb-8">{subtitle}</p>}
@@ -111,51 +110,60 @@ function BannerModule({ title, subtitle, url }: any) {
 
 function renderModule(m: Module, products: Product[]) {
   switch (m.type) {
-    case 'hero':    return <HeroModule key={m.type} {...m} />;
-    case 'features': return <FeaturesModule key={m.type} {...m} />;
-    case 'products': return <ProductsModule key={m.type} {...m} products={products} />;
-    case 'banner':   return <BannerModule key={m.type} {...m} />;
+    case 'hero':     return <HeroModule key={m.type} {...m} />;
+    case 'features':  return <FeaturesModule key={m.type} {...m} />;
+    case 'products':  return <ProductsModule key={m.type} {...m} products={products} />;
+    case 'banner':    return <BannerModule key={m.type} {...m} />;
     default: return null;
   }
 }
 
-export default function Home({ pageTitle, modules, products }: HomeProps) {
-  return (
-    <div className="min-h-screen bg-white text-black font-sans">
-      <header className="sticky top-0 z-50 bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <Link href="/" className="text-xl font-semibold">My Store</Link>
-          <nav className="flex gap-6 text-sm text-gray-600">
-            <Link href="/" className="text-black font-medium">Home</Link>
-          </nav>
-        </div>
-      </header>
+interface Props {
+  pageData: PageData;
+}
 
+export default function Page({ pageData }: Props) {
+  const { pageTitle, modules } = pageData;
+
+  return (
+    <main>
       {modules.length === 0 ? (
         <div className="py-20 text-center">
           <h1 className="text-4xl font-bold mb-4">{pageTitle}</h1>
-          <p className="text-gray-400">首页模块配置为空，请在 Shopify 后台页面底部添加模块数据</p>
+          <p className="text-gray-400">页面模块配置为空，请在 Shopify 后台添加模块数据</p>
         </div>
       ) : (
-        modules.map((m, i) => renderModule(m, products))
+        modules.map((m: Module, i: number) => renderModule(m, pageData.products))
       )}
-    </div>
+    </main>
   );
 }
 
-export async function getStaticProps() {
-  // 直接用 lib/shopify.ts 读取，和 /home 路由一致
-  const [page, products] = await Promise.all([
-    getPage('home'),
-    getProducts(12),
-  ]);
+export const getStaticPaths: GetStaticPaths = async () => {
+  return {
+    paths: [{ params: { slug: ['home'] } }],
+    fallback: 'blocking',
+  };
+};
+
+export const getStaticProps: GetStaticProps = async ({ params }) => {
+  const slug = params?.slug as string[];
+  const handle = slug?.[0] || 'home';
+
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+  let pageData: any = { pageTitle: handle, modules: [], products: [] };
+
+  try {
+    const [pageRes, productsRes] = await Promise.all([
+      fetch(`${baseUrl}/api/shopify?query=page&handle=${handle}`, { cache: 'no-store' }),
+      fetch(`${baseUrl}/api/shopify?query=products`, { cache: 'no-store' }),
+    ]);
+    if (pageRes.ok) pageData = await pageRes.json();
+    if (productsRes.ok) pageData.products = await productsRes.json();
+  } catch {}
 
   return {
-    props: {
-      pageTitle: page?.title || 'My Store',
-      modules: page?.modules || [],
-      products,
-    },
+    props: { pageData },
     revalidate: 60,
   };
-}
+};

@@ -21,4 +21,11 @@ export type ShopifyPage = {
   title: string;
   handle: string;
   body: string;
+  modules: ModuleConfig[];
+};
+
+// 模块配置类型
+export type ModuleConfig = {
+  type: string;
+  [key: string]: any;
 };
