@@ -29,7 +29,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch('https://vbiwbf-ev.myshopify.com/products.json')
+    fetch('/.netlify/functions/products')
       .then((res) => res.json())
       .then((data) => setProducts(data.products || []))
       .catch((e: Error) => setError(e.message));
