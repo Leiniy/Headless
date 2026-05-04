@@ -20,7 +20,7 @@ type CartItem = {
   image: string;
 };
 
-const STOREFRONT_TOKEN = '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';
+const STOREFRONT_TOKEN = 'a233b69972e06502c727dfda23afd31c';
 const STORE_URL = 'https://vbiwbf-ev.myshopify.com';
 
 export default function Home() {
