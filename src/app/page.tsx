@@ -2,26 +2,13 @@
 
 import { useState, useEffect } from 'react';
 
-type Variant = {
-  id: number;
-  title: string;
-  price: string;
-  available: boolean;
-};
-
-type Image = {
-  id: number;
-  src: string;
-};
-
 type Product = {
-  id: number;
+  id: string;
   title: string;
   handle: string;
-  body_html: string;
-  vendor: string;
-  variants: Variant[];
-  images: Image[];
+  price: string;
+  currency: string;
+  image: string;
 };
 
 export default function Home() {
@@ -29,9 +16,59 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch('/.netlify/functions/products')
+    const query = `
+      query getProducts($first: Int!) {
+        products(first: $first) {
+          edges {
+            node {
+              id
+              title
+              handle
+              priceRange {
+                minVariantPrice {
+                  amount
+                  currencyCode
+                }
+              }
+              images(first: 1) {
+                edges {
+                  node {
+                    url
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    fetch('https://vbiwbf-ev.myshopify.com/api/2024-10/graphql.json', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Shopify-Storefront-Access-Token': 'f923b416e0268a2def061f73388fd445',
+      },
+      body: JSON.stringify({ query, variables: { first: 12 } }),
+    })
       .then((res) => res.json())
-      .then((data) => setProducts(data.products || []))
+      .then((data) => {
+        if (data.errors) {
+          setError(data.errors[0].message);
+          return;
+        }
+        const items = data.data?.products?.edges || [];
+        setProducts(
+          items.map((edge: any) => ({
+            id: edge.node.id,
+            title: edge.node.title,
+            handle: edge.node.handle,
+            price: edge.node.priceRange?.minVariantPrice?.amount || '0.00',
+            currency: edge.node.priceRange?.minVariantPrice?.currencyCode || 'USD',
+            image: edge.node.images?.edges?.[0]?.node?.url || '',
+          }))
+        );
+      })
       .catch((e: Error) => setError(e.message));
   }, []);
 
@@ -65,35 +102,33 @@ export default function Home() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {products.map((product) => {
-              const price = product.variants[0]?.price || '0.00';
-              const image = product.images[0]?.src || '';
-              return (
-                <a
-                  key={product.id}
-                  href={`https://vbiwbf-ev.myshopify.com/products/${product.handle}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="group border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow"
-                >
-                  <div className="aspect-square bg-gray-100 relative overflow-hidden">
-                    {image ? (
-                      <img
-                        src={image}
-                        alt={product.title}
-                        className="object-cover w-full h-full"
-                      />
-                    ) : (
-                      <div className="flex items-center justify-center h-full text-gray-400">No image</div>
-                    )}
-                  </div>
-                  <div className="p-4">
-                    <h4 className="font-medium text-sm mb-1">{product.title}</h4>
-                    <p className="text-gray-600 text-sm">${parseFloat(price).toFixed(2)}</p>
-                  </div>
-                </a>
-              );
-            })}
+            {products.map((product) => (
+              <a
+                key={product.id}
+                href={`https://vbiwbf-ev.myshopify.com/products/${product.handle}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow"
+              >
+                <div className="aspect-square bg-gray-100 relative overflow-hidden">
+                  {product.image ? (
+                    <img
+                      src={product.image}
+                      alt={product.title}
+                      className="object-cover w-full h-full"
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center h-full text-gray-400">No image</div>
+                  )}
+                </div>
+                <div className="p-4">
+                  <h4 className="font-medium text-sm mb-1">{product.title}</h4>
+                  <p className="text-gray-600 text-sm">
+                    ${parseFloat(product.price).toFixed(2)} {product.currency}
+                  </p>
+                </div>
+              </a>
+            ))}
           </div>
         )}
       </main>
