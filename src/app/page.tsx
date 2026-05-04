@@ -1,18 +1,30 @@
+'use client';
+
+import { useState, useEffect } from 'react';
 import { getProducts } from '@/lib/shopify';
 
-export default async function Home() {
-  let products: any[] = [];
-  let error = null;
+type Product = {
+  id: string;
+  title: string;
+  handle: string;
+  description: string;
+  price: string;
+  currency: string;
+  image: string;
+};
 
-  try {
-    products = await getProducts();
-  } catch (e: any) {
-    error = e.message;
-  }
+export default function Home() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    getProducts()
+      .then(setProducts)
+      .catch((e: Error) => setError(e.message));
+  }, []);
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Header */}
       <header className="border-b border-gray-200 px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <h1 className="text-xl font-semibold">My Store</h1>
@@ -23,13 +35,11 @@ export default async function Home() {
         </div>
       </header>
 
-      {/* Hero */}
       <section className="px-6 py-20 text-center">
         <h2 className="text-4xl font-bold mb-4">Welcome to Our Store</h2>
         <p className="text-gray-600 max-w-md mx-auto">Browse our latest collection</p>
       </section>
 
-      {/* Products */}
       <main className="max-w-7xl mx-auto px-6 pb-20">
         <h3 className="text-2xl font-semibold mb-8">Featured Products</h3>
 
@@ -39,7 +49,7 @@ export default async function Home() {
           </div>
         ) : products.length === 0 ? (
           <div className="text-gray-500 p-8 text-center border border-gray-200 rounded">
-            No products found in your Shopify store.
+            Loading products...
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
